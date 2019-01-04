@@ -141,12 +141,56 @@ type sendMessageParams struct {
 	Options sendMessageOptions
 }
 
+type editMessageBody struct {
+	Body string
+}
+
 type sendMessageArg struct {
 	Method string
 	Params sendMessageParams
 }
 
-func (a *API) doSend(arg sendMessageArg) error {
+type editMessageOptions struct {
+	ConversationID string  `json:"conversation_id,omitempty"`
+	Channel        Channel `json:"channel,omitempty"`
+	Message        editMessageBody
+	MessageID      int `json:"message_id"`
+}
+
+type editMessageParams struct {
+	Options editMessageOptions
+}
+
+type editMessageArg struct {
+	Method string
+	Params editMessageParams
+}
+
+type readMessagesOptions struct {
+	ConversationID string                 `json:"conversation_id,omitempty"`
+	Channel        Channel                `json:"channel,omitempty"`
+	Pagination     readMessagesPagination `json:"pagination"`
+}
+
+type readMessagesPagination struct {
+	Num int `json:"num"`
+}
+
+type readMessagesParams struct {
+	Options readMessagesOptions
+}
+
+type readMessagesArg struct {
+	Method string
+	Params readMessagesParams
+}
+
+// type messageArg interface {
+// 	Method string
+// 	Params interface
+// }
+
+func (a *API) doSend(arg interface{}) error {
 	bArg, err := json.Marshal(arg)
 	if err != nil {
 		return err
@@ -155,6 +199,24 @@ func (a *API) doSend(arg sendMessageArg) error {
 		return err
 	}
 	a.output.Scan()
+	return nil
+}
+
+func (a *API) doGet(arg interface{}, result interface{}) error {
+	bArg, err := json.Marshal(arg)
+	if err != nil {
+		return err
+	}
+	if _, err := io.WriteString(a.input, string(bArg)); err != nil {
+		return err
+	}
+
+	a.output.Scan()
+
+	if err = json.Unmarshal([]byte(a.output.Text()), result); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -213,6 +275,56 @@ func (a *API) SendMessageByTeamName(teamName string, body string, inChannel *str
 		},
 	}
 	return a.doSend(arg)
+}
+
+func (a *API) EditMessageByTeamName(teamName string, messageID int, body string, inChannel *string) error {
+	channel := "general"
+	if inChannel != nil {
+		channel = *inChannel
+	}
+	arg := editMessageArg{
+		Method: "edit",
+		Params: editMessageParams{
+			Options: editMessageOptions{
+				Channel: Channel{
+					MembersType: "team",
+					Name:        teamName,
+					TopicName:   channel,
+				},
+				MessageID: messageID,
+				Message: editMessageBody{
+					Body: body,
+				},
+			},
+		},
+	}
+	return a.doSend(arg)
+}
+
+func (a *API) ReadMessagesByTeamName(teamName string, inChannel *string) ([]ReadMessageTop, error) {
+	channel := "general"
+	if inChannel != nil {
+		channel = *inChannel
+	}
+	arg := readMessagesArg{
+		Method: "read",
+		Params: readMessagesParams{
+			Options: readMessagesOptions{
+				Channel: Channel{
+					MembersType: "team",
+					Name:        teamName,
+					TopicName:   channel,
+				},
+				Pagination: readMessagesPagination{
+					Num: 10,
+				},
+			},
+		},
+	}
+	result := ReadResultTop{}
+
+	err := a.doGet(arg, &result)
+	return result.Result.Messages, err
 }
 
 func (a *API) Username() string {

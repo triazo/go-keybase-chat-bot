@@ -25,6 +25,25 @@ type Result struct {
 	Convs []Conversation `json:"conversations"`
 }
 
+type ReadResultTop struct {
+	Result ReadResult `json:"result"`
+}
+
+type ReadResult struct {
+	Messages []ReadMessageTop `json:"messages"`
+}
+
+type ReadMessageTop struct {
+	M ReadMessage `json:"msg"`
+}
+
+type ReadMessage struct {
+	ID      int     `json:"id"`
+	Channel Channel `json:"channel"`
+	Sender  Sender  `json:"sender"`
+	Content Content `json:"content"`
+}
+
 type Inbox struct {
 	Result Result `json:"result"`
 }
